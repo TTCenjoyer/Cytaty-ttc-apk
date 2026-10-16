@@ -1,0 +1,40 @@
+name: Android APK
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Build and lint
+        working-directory: android
+        run: gradle --no-daemon :app:assembleDebug :app:lintDebug
+      - name: Name APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk Cytaty-TTC.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Cytaty-TTC-Android
+          path: Cytaty-TTC.apk
+      - name: Publish APK in private release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view mobile-latest >/dev/null 2>&1; then
+            gh release create mobile-latest --target "$GITHUB_SHA" --title "Aplikacje Cytaty TTC" --notes "APK do instalacji ręcznej. Wersja Android jest podpisana kluczem debug; aktualizacja po kolejnym buildzie może wymagać ponownej instalacji."
+          fi
+          gh release upload mobile-latest Cytaty-TTC.apk --clobber
+
