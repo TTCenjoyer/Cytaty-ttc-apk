@@ -10,6 +10,7 @@ import android.widget.*;
 public class MainActivity extends Activity {
  private WebView web; private LinearLayout error,root; private TextView message;
  private static final String HOME="https://cytat.nsip.ovh/";
+ private AppUpdater updater;
  @Override public void onCreate(Bundle state) {
   super.onCreate(state);
   root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);
@@ -29,6 +30,7 @@ public class MainActivity extends Activity {
    @Override public void onReceivedError(WebView v,WebResourceRequest r,WebResourceError e){if(r.isForMainFrame())error.setVisibility(View.VISIBLE);}
   });
   if(state==null)web.loadUrl(HOME);else web.restoreState(state);
+  updater=new AppUpdater(this);updater.check(false);
  }
  private void syncTheme(){
   if(web==null)return;
@@ -49,7 +51,7 @@ public class MainActivity extends Activity {
  @Override public void onWindowFocusChanged(boolean hasFocus){super.onWindowFocusChanged(hasFocus);if(hasFocus)syncTheme();}
  @Override protected void onSaveInstanceState(Bundle state){super.onSaveInstanceState(state);web.saveState(state);}
  @Override public void onBackPressed(){if(web.canGoBack())web.goBack();else super.onBackPressed();}
- @Override protected void onDestroy(){web.destroy();super.onDestroy();}
+ @Override protected void onResume(){super.onResume();if(updater!=null){updater.resume();updater.check(false);}}
+ @Override protected void onDestroy(){if(updater!=null)updater.close();web.destroy();super.onDestroy();}
 }
-
 

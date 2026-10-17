@@ -2,7 +2,20 @@ plugins { id 'com.android.application' }
 android {
  namespace 'ovh.nsip.cytaty'
  compileSdk 35
- defaultConfig { applicationId 'ovh.nsip.cytaty'; minSdk 26; targetSdk 35; versionCode 3; versionName '1.1.1' }
+ defaultConfig { applicationId 'ovh.nsip.cytaty'; minSdk 26; targetSdk 35; versionCode 4; versionName '1.2.0' }
+ signingConfigs {
+  release {
+   storeType 'PKCS12'
+   if (System.getenv('ANDROID_KEYSTORE_PATH')) {
+    storeFile file(System.getenv('ANDROID_KEYSTORE_PATH'))
+    storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
+    keyAlias 'cytaty-ttc'
+    keyPassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
+   }
+  }
+ }
+ buildTypes { release { signingConfig signingConfigs.release } }
  compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
+dependencies { implementation 'androidx.core:core:1.13.1' }
 

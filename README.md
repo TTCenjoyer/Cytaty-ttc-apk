@@ -1,21 +1,21 @@
 # Cytaty TTC — Android
 
-Aplikacja otwiera https://cytat.nsip.ovh/ z obecnym logowaniem i wszystkimi funkcjami strony. Wymaga internetu i Androida 8 lub nowszego. Hasła nie są zapisane w aplikacji. Sesja i preferencja motywu pozostają w jej danych.
+Aplikacja otwiera https://cytat.nsip.ovh/ i zachowuje logowanie oraz motyw. Android 8 lub nowszy.
 
-## Pobieranie
+## Pobieranie i aktualizacje
 
-Gotowy `Cytaty-TTC.apk` jest w Releases → Aplikacje Cytaty TTC oraz w artefaktach workflow Android APK. Prywatne repozytorium wymaga zalogowania na konto z dostępem.
+https://github.com/TTCenjoyer/Cytaty-ttc-apk/releases/download/mobile-latest/Cytaty-TTC.apk
 
-Jest to APK do instalacji ręcznej podpisany kluczem debug. Kolejny build może wymagać odinstalowania poprzedniej wersji (usuwa to sesję i preferencje). Do trwałej dystrybucji należy skonfigurować stały klucz podpisu.
+Od wersji 1.2.0 aplikacja sprawdza nowe wersje przy uruchomieniu i powrocie do aplikacji, najwyżej raz na 6 godzin po udanym sprawdzeniu. Pokazuje propozycję pobrania nowej wersji. Instalację zawsze zatwierdza użytkownik w Androidzie; przy pierwszej aktualizacji może być wymagane zezwolenie na instalowanie aplikacji z tego źródła.
 
-## Budowanie
+APK jest pobierane po HTTPS, weryfikowane przez SHA-256, nazwę pakietu, wyższy numer wersji oraz zgodność certyfikatu podpisu z zainstalowaną aplikacją. Brak internetu nie blokuje strony ani nie powoduje komunikatu przy każdym uruchomieniu. Plik jest udostępniany instalatorowi przez FileProvider ograniczony do katalogu aktualizacji w prywatnej pamięci podręcznej.
 
-GitHub Actions buduje APK i wykonuje Android Lint po każdym pushu na main. Build można też uruchomić ręcznie: Actions → Android APK → Run workflow.
+Starsze wersje były podpisane tymczasowymi kluczami debug. Przejście z nich na 1.2.0 wymaga jednorazowego odinstalowania starej aplikacji (usuwa logowanie i preferencje). Kolejne wydania podpisuje ten sam stały klucz, więc nie wymagają odinstalowywania.
 
-Lokalnie otwórz katalog android w Android Studio. Alternatywnie użyj JDK 17, Gradle 8.9 i Android SDK 35, następnie w katalogu android uruchom:
+## Stały podpis w GitHub Actions
 
-```
-gradle :app:assembleDebug :app:lintDebug
-```
+W Settings → Secrets and variables → Actions dodaj repozytoryjny sekret `ANDROID_SIGNING_JSON`. Jego JSON zawiera pola `keystore_base64` (PKCS12, alias `cytaty-ttc`) i `password`. Nigdy nie zapisuj tego sekretu ani prywatnego klucza w repozytorium lub w logach. Trzymaj kopię poza GitHubem. Workflow nie publikuje niepodpisanego APK, gdy sekretu brakuje.
 
-Aplikacja używa systemowego WebView. Walidacja HTTPS jest włączona, zewnętrzne odnośniki otwierają przeglądarkę. Aplikacja nie ma natywnego dostępu do plików ani mostka JavaScript. Zmiany strony pojawiają się bez aktualizacji APK.
+Workflow najpierw buduje aplikację i uruchamia Android Lint. Następnie odtwarza klucz z sekretu do pliku tymczasowego, buduje i sprawdza wariant release, publikuje APK oraz `update.json` z numerem wersji i SHA-256. Tymczasowy klucz jest usuwany również po błędzie. Przy każdym nowym wydaniu zwiększ `versionCode` oraz `versionName` w `android/app/build.gradle`.
+
+Zmiany strony są widoczne bez aktualizacji APK. Aplikacja nie ma dostępu do plików strony ani mostka JavaScript; weryfikacja TLS pozostaje włączona.

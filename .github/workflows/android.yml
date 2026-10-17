@@ -23,18 +23,56 @@ jobs:
       - name: Build and lint
         working-directory: android
         run: gradle --no-daemon :app:assembleDebug :app:lintDebug
-      - name: Name APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk Cytaty-TTC.apk
+      - name: Restore permanent signing key
+        env:
+          SIGNING_JSON: ${{ secrets.ANDROID_SIGNING_JSON }}
+        run: |
+          python3 - <<'PY'
+          import os,json,base64,pathlib
+          raw=os.environ.get('SIGNING_JSON','')
+          if not raw:
+              raise SystemExit('Add repository Actions secret ANDROID_SIGNING_JSON before publishing signed updates.')
+          data=json.loads(raw)
+          password=data['password']
+          if len(password)<32 or '\n' in password:
+              raise SystemExit('Invalid signing secret')
+          print('::add-mask::'+password)
+          path=pathlib.Path(os.environ['RUNNER_TEMP'])/'cytaty-release.p12'
+          path.write_bytes(base64.b64decode(data['keystore_base64'],validate=True))
+          path.chmod(0o600)
+          with open(os.environ['GITHUB_ENV'],'a') as f:
+              f.write('ANDROID_KEYSTORE_PATH='+str(path)+'\n')
+              f.write('ANDROID_KEYSTORE_PASSWORD='+password+'\n')
+          PY
+      - name: Build signed release
+        working-directory: android
+        run: gradle --no-daemon :app:assembleRelease :app:lintRelease
+      - name: Prepare release and manifest
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk Cytaty-TTC.apk
+          python3 - <<'PY'
+          import re,json,hashlib,pathlib
+          source=pathlib.Path('android/app/build.gradle').read_text()
+          version=int(re.search(r'versionCode\s+(\d+)',source)[1])
+          name=re.search(r"versionName\s+'([^']+)'",source)[1]
+          digest=hashlib.sha256(pathlib.Path('Cytaty-TTC.apk').read_bytes()).hexdigest()
+          pathlib.Path('update.json').write_text(json.dumps({'versionCode':version,'versionName':name,'sha256':digest},indent=2)+'\n')
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: Cytaty-TTC-Android
-          path: Cytaty-TTC.apk
-      - name: Publish APK in private release
+          path: |
+            Cytaty-TTC.apk
+            update.json
+      - name: Publish signed APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           if ! gh release view mobile-latest >/dev/null 2>&1; then
-            gh release create mobile-latest --target "$GITHUB_SHA" --title "Aplikacje Cytaty TTC" --notes "APK do instalacji ręcznej. Wersja Android jest podpisana kluczem debug; aktualizacja po kolejnym buildzie może wymagać ponownej instalacji."
+            gh release create mobile-latest --target "$GITHUB_SHA" --title "Aplikacje Cytaty TTC" --notes "Podpisana aplikacja Android z aktualizacjami wymagającymi potwierdzenia instalacji."
           fi
           gh release upload mobile-latest Cytaty-TTC.apk --clobber
-
+          gh release upload mobile-latest update.json --clobber
+      - name: Remove signing material
+        if: always()
+        run: rm -f "$RUNNER_TEMP/cytaty-release.p12"
