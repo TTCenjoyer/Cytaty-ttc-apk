@@ -29,16 +29,17 @@ final class AppUpdater {
  private final Activity activity;
  private final ExecutorService executor=Executors.newSingleThreadExecutor();
  private final Handler main=new Handler(Looper.getMainLooper());
- private boolean busy,closed;
+ private boolean busy,closed,checkedThisLaunch;
  private File pending;
  AppUpdater(Activity activity){this.activity=activity;}
  void check(boolean manual){
   if(busy||closed)return;
   long last=activity.getPreferences(0).getLong("updateCheck",0);
-  if(!manual&&System.currentTimeMillis()-last<6*60*60*1000L)return;
+  if(!UpdatePolicy.shouldCheck(manual,checkedThisLaunch,last,System.currentTimeMillis()))return;
+  checkedThisLaunch=true;
   busy=true;
   executor.execute(()->{try{
-   JSONObject release=new JSONObject(readText(BASE+"update.json"));
+   JSONObject release=new JSONObject(readText(BASE+"update.json?check="+System.currentTimeMillis()));
    long version=release.getLong("versionCode");String name=release.getString("versionName"),sha=release.getString("sha256");
    if(!sha.matches("[a-fA-F0-9]{64}"))throw new IOException("Invalid manifest");
    long current=version(activity.getPackageManager().getPackageInfo(activity.getPackageName(),0));
@@ -105,7 +106,7 @@ final class AppUpdater {
   URL url=new URL(address);
   for(int i=0;i<6;i++){
    if(!"https".equals(url.getProtocol()))throw new IOException("HTTPS required");
-   HttpURLConnection c=(HttpURLConnection)url.openConnection();c.setConnectTimeout(15000);c.setReadTimeout(30000);c.setInstanceFollowRedirects(false);c.setRequestProperty("User-Agent","Cytaty-TTC-Updater");
+   HttpURLConnection c=(HttpURLConnection)url.openConnection();c.setConnectTimeout(15000);c.setReadTimeout(30000);c.setInstanceFollowRedirects(false);c.setUseCaches(false);c.setRequestProperty("Cache-Control","no-cache");c.setRequestProperty("User-Agent","Cytaty-TTC-Updater");
    int status=c.getResponseCode();
    if(status>=300&&status<400){String location=c.getHeaderField("Location");c.disconnect();if(location==null)throw new IOException("No redirect");url=new URL(url,location);continue;}
    if(status!=200){c.disconnect();throw new IOException("HTTP "+status);}return c;
