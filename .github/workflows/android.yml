@@ -22,7 +22,7 @@ jobs:
           gradle-version: '8.9'
       - name: Build and lint
         working-directory: android
-        run: gradle --no-daemon :app:assembleDebug :app:lintDebug
+        run: gradle --no-daemon :app:assembleDebug :app:lintDebug :app:testDebugUnitTest
       - name: Restore permanent signing key
         env:
           SIGNING_JSON: ${{ secrets.ANDROID_SIGNING_JSON }}
